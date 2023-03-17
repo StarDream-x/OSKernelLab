@@ -8,6 +8,10 @@
 #include "riscv.h"
 #include "spike_interface/spike_utils.h"
 
+char strTab[STRTAB_MAX];
+int funcNum = 0;
+elf_sym_tab funcSyms[FUNCNUM_MAX];
+
 typedef struct elf_info_t {
   spike_file_t *f;
   process *p;
@@ -75,6 +79,52 @@ elf_status elf_load(elf_ctx *ctx) {
   return EL_OK;
 }
 
+//
+// load the elf section header to memory regions as we are in Bare mode in lab1
+//
+elf_status elf_load_sect(elf_ctx *ctx) {
+  elf_sect_header sh_addr;
+  elf_sect_header sym_addr;
+  elf_sym_tab symTab;
+  int i, off, ad = ctx->ehdr.shentsize;
+  
+  if(ad != sizeof(sh_addr)) panic("ERROR: size of section failed to match");
+
+  //get string table
+  for(i = 0, off = ctx->ehdr.shoff; i < ctx->ehdr.shnum; ++i, off += ad){
+    if(elf_fpread(ctx, (void*)&sh_addr, ad, off) != ad) return EL_EIO;
+    if(sh_addr.type == SHT_STRTAB) break;
+  }
+
+  if(elf_fpread(ctx, (void*)strTab, sizeof(strTab), sh_addr.offset) != sizeof(strTab)) return EL_EIO;
+
+  //get symbol table
+  for(i = 0, off = ctx->ehdr.shoff; i < ctx->ehdr.shnum; ++i, off += ad){
+    if(elf_fpread(ctx, (void*)&sym_addr, ad, off) != ad) return EL_EIO;
+    if(sym_addr.type == SHT_SYMTAB) break;
+  }
+
+  // test section name
+  // sprint("strSecName = %s\n",strTab + sh_addr.name);
+  // sprint("symSecName = %s\n",strTab + sym_addr.name);
+
+  //find every item of symbol table
+  ad = sizeof(symTab);
+  
+  if(ad != sym_addr.entsize) panic("ERROR: size of symbol table failed to match");
+  
+  funcNum = 0;
+  for(i = 0, off = sym_addr.offset; i < sym_addr.size / sym_addr.entsize; ++i, off += ad){
+    if(elf_fpread(ctx, (void*)&symTab, ad, off) != ad) return EL_EIO;
+    if(ELF64_ST_TYPE(symTab.info) == STT_FUNC){
+      funcSyms[funcNum] = symTab;
+      ++funcNum;
+    }
+  }
+
+  return EL_OK;
+}
+
 typedef union {
   uint64 buf[MAX_CMDLINE_ARGS];
   char *argv[MAX_CMDLINE_ARGS];
@@ -130,6 +180,9 @@ void load_bincode_from_host_elf(process *p) {
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
 
+  //load elf. elf_load_sect()
+  if (elf_load_sect(&elfloader) != EL_OK) panic("Fail on loading elf. section header");
+
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
 
@@ -137,4 +190,17 @@ void load_bincode_from_host_elf(process *p) {
   spike_file_close( info.f );
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+}
+
+void backtrace(uint64 dep, uint64 addr){
+  while(dep--){
+    for(int i =0; i < funcNum; ++i){
+      if(addr == funcSyms[i].value){
+        sprint("%s\n", strTab + funcSyms[i].name);
+        if(strcmp(strTab + funcSyms[i].name, "main") == 0) return;
+        addr += funcSyms[i].size;
+        break;
+      }
+    }
+  }
 }
