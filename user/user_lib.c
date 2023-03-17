@@ -49,3 +49,9 @@ int printu(const char* s, ...) {
 int exit(int code) {
   return do_user_call(SYS_user_exit, code, 0, 0, 0, 0, 0, 0); 
 }
+
+
+//Lab1-Challenge1
+int print_backtrace(int dep){
+  return do_user_call(SYS_user_backtrace, dep, 0, 0, 0, 0, 0, 0);
+}
