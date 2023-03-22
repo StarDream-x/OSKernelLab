@@ -71,11 +71,7 @@ USER_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_CPPS)))
 
 
 
-<<<<<<< HEAD
 USER_TARGET 	:= $(OBJ_DIR)/app_errorline
-=======
-USER_TARGET 	:= $(OBJ_DIR)/app_print_backtrace
->>>>>>> lab1_challenge1_backtrace
 #------------------------targets------------------------
 $(OBJ_DIR):
 	@-mkdir -p $(OBJ_DIR)	
