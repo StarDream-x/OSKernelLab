@@ -66,6 +66,10 @@ int s_start(void) {
 
   // added @lab3_1
   init_proc_pool();
+  for(int i=0;i<NSEM;++i){
+      sem[i].num=-1;
+      sem[i].semaphore_queue=NULL;
+  }
 
   sprint("Switch to user mode...\n");
   // the application code (elf) is first loaded into memory, and then put into execution

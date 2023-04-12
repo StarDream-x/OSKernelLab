@@ -71,3 +71,28 @@ void schedule() {
   sprint( "going to schedule process %d to run.\n", current->pid );
   switch_to( current );
 }
+
+void insert_into_semaphore_queue(process* proc, int n){
+    bool flag = 0;
+    process* nproc = sem[n].semaphore_queue;
+    if(nproc == NULL){
+        sem[n].semaphore_queue = proc;
+        return;
+    }
+    for(;nproc->queue_next!=NULL;nproc=nproc->queue_next){
+        if(proc->pid == nproc->pid){
+            flag = 1;break;
+        }
+    }
+    if(flag || nproc->pid == proc->pid) return;
+    nproc->queue_next = proc;
+    proc->status = BLOCKED;
+    proc->queue_next = NULL;
+}
+
+process* schedual_semaphore(int n){
+    if(sem[n].semaphore_queue == NULL) return NULL;
+    process* res = sem[n].semaphore_queue;
+    sem[n].semaphore_queue = sem[n].semaphore_queue->queue_next;
+    return res;
+}

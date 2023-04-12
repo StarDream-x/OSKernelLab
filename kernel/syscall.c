@@ -85,6 +85,36 @@ ssize_t sys_user_yield() {
   return 0;
 }
 
+ssize_t sys_user_semNew(int n){
+    int i;
+    for(i=0;i<NSEM;++i) if(sem[i].num==-1) break;
+    if(i>=NSEM) panic("NO available semaphore!");
+    sem[i].num=n;
+    sem[i].semaphore_queue=NULL;
+    return i;
+}
+
+ssize_t sys_user_semP(int n){
+    --sem[n].num;
+    if(sem[n].num<0){
+        insert_into_semaphore_queue(current,n);
+        schedule();
+    }
+    return 0;
+}
+
+ssize_t sys_user_semV(int n){
+    ++sem[n].num;
+    if(sem[n].num<=0){
+        process* proc = schedual_semaphore(n);
+        if(proc != NULL){
+            proc->status = READY;
+            insert_to_ready_queue(proc);
+        }
+    }
+    return 0;
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
@@ -104,6 +134,12 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_semNew:
+      return sys_user_semNew(a1);
+    case SYS_user_semP:
+      return sys_user_semP(a1);
+    case SYS_user_semV:
+      return sys_user_semV(a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }

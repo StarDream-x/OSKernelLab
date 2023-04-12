@@ -9,4 +9,7 @@
 void insert_to_ready_queue( process* proc );
 void schedule();
 
+void insert_into_semaphore_queue(process *proc,int n);
+process* schedual_semaphore(int n);
+
 #endif
