@@ -12,9 +12,11 @@ int flag;
 int main(void) {
     flag = 0;
     int pid = fork();
+//    printu("child pid=%d\n",pid);
     if (pid == 0) {
         flag = 1;
         pid = fork();
+//        printu("grandchild pid=%d\n",pid);
         if (pid == 0) {
             flag = 2;
             printu("Grandchild process end, flag = %d.\n", flag);

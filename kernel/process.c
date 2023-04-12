@@ -82,6 +82,7 @@ void init_proc_pool() {
   for (int i = 0; i < NPROC; ++i) {
     procs[i].status = FREE;
     procs[i].pid = i;
+    procs[i].wait_pid = NPROC;
   }
 }
 
@@ -157,6 +158,16 @@ int free_process( process* proc ) {
   // as it is different from regular OS, which needs to run 7x24.
   proc->status = ZOMBIE;
 
+//    sprint("FREE_pid=%d  parent_pid=%d  parent_wait=%d\n",proc->pid,proc->parent->pid,proc->parent->wait_pid);
+  if(proc->parent != NULL && proc->parent->status == BLOCKED){
+      if(proc->parent->wait_pid == -1 || proc->parent->wait_pid == proc->pid){
+//          sprint("RE::FREE_pid=%d  parent_pid=%d  parent_wait=%d\n",proc->pid,proc->parent->pid,proc->parent->wait_pid);
+          proc->parent->wait_pid = proc->pid;
+          proc->parent->status = READY;
+          insert_to_ready_queue(proc->parent);
+      }
+  }
+
   return 0;
 }
 
@@ -206,6 +217,26 @@ int do_fork( process* parent)
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
         child->total_mapped_region++;
         break;
+
+      case DATA_SEGMENT:
+        for(int j=0;j<parent->mapped_info[i].npages;++j){
+            uint64 ppa,pva,cpa,cva;
+            pva = parent->mapped_info[i].va + j*PGSIZE;
+            ppa = lookup_pa(parent->pagetable, pva);
+            cva = pva;
+            cpa = (uint64)alloc_page();
+            memcpy((void *)cpa, (void *)ppa, PGSIZE);
+            if(map_pages(child->pagetable,cva,PGSIZE,cpa, prot_to_type(PROT_READ|PROT_EXEC|PROT_WRITE, 1)) == -1){
+                panic("do fork fail");
+            }
+
+            // after mapping, register the vm region (do not delete codes below!)
+            child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+            child->mapped_info[child->total_mapped_region].npages =
+                    parent->mapped_info[i].npages;
+            child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+            child->total_mapped_region++;
+        }
     }
   }
 

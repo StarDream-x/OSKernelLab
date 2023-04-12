@@ -76,3 +76,12 @@ int fork() {
 void yield() {
   do_user_call(SYS_user_yield, 0, 0, 0, 0, 0, 0, 0);
 }
+
+int wait(int pid){
+    int flag=32;
+    while(1){
+        flag = do_user_call(SYS_user_wait, pid, 0, 0, 0, 0, 0, 0);
+        if(flag<32) break;
+    }
+    return flag;
+}
