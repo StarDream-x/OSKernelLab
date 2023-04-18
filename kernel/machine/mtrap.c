@@ -1,6 +1,8 @@
+#include <string.h>
 #include "kernel/riscv.h"
 #include "kernel/process.h"
 #include "spike_interface/spike_utils.h"
+#include "kernel/elf.h"
 
 static void handle_instruction_access_fault() { panic("Instruction access fault!"); }
 
@@ -24,11 +26,55 @@ static void handle_timer() {
   write_csr(sip, SIP_SSIP);
 }
 
+void print_errorline(uint64 mepc){
+    char *debugline=current->debugline;
+    char **dir=current->dir;
+    code_file *file=current->file;
+    addr_line *line=current->line;
+    int line_ind=current->line_ind;
+    char* file_name=NULL;
+    char* dir_name=NULL;
+    uint64 row_num=0;
+    for(int i=0;i<line_ind;++i){
+        if(mepc==line[i].addr){
+            row_num=line[i].line;
+            file_name=file[line[i].file].file;
+            dir_name=dir[file[line[i].file].dir];
+            break;
+        }
+    }
+    sprint("Runtime error at %s/%s:%lld\n",dir_name,file_name,row_num);
+    int c_size= strlen(file_name)+ strlen(dir_name)+1;
+    char  c_name[c_size];
+    strcpy(c_name,dir_name);
+    c_name[strlen(dir_name)]='/';
+    strcpy(c_name+strlen(dir_name)+1,file_name);
+    c_name[c_size+1]='\0';
+
+    elf_info info;
+    spike_file_t *f= spike_file_open(c_name,O_RDONLY,0);
+    int cur_row=1;
+    char cur_char;
+    int cur_idx=0;
+    for(cur_idx=0;;cur_idx++){
+        spike_file_pread(f,(void*)&cur_char,1,cur_idx);
+        if(cur_char=='\n') ++cur_row;
+        if(cur_row==row_num) break;
+    }
+    for(int i=0;;++i){
+        spike_file_pread(f,(void*)&cur_char,1,cur_idx+i+1);
+        sprint("%c",cur_char);
+        if(cur_char=='\n') break;
+    }
+}
+
 //
 // handle_mtrap calls a handling function according to the type of a machine mode interrupt (trap).
 //
 void handle_mtrap() {
   uint64 mcause = read_csr(mcause);
+  uint64 mepc= read_csr(mepc);
+  print_errorline(mepc);
   switch (mcause) {
     case CAUSE_MTIMER:
       handle_timer();
@@ -42,9 +88,6 @@ void handle_mtrap() {
       handle_store_access_fault();
       break;
     case CAUSE_ILLEGAL_INSTRUCTION:
-      // TODO (lab1_2): call handle_illegal_instruction to implement illegal instruction
-      // interception, and finish lab1_2.
-      // panic( "call handle_illegal_instruction to accomplish illegal instruction interception for lab1_2.\n" );
       handle_illegal_instruction();
       break;
     case CAUSE_MISALIGNED_LOAD:

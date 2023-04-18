@@ -12,11 +12,6 @@ char strTab[STRTAB_MAX];
 int funcNum = 0;
 elf_sym_tab funcSyms[FUNCNUM_MAX];
 
-typedef struct elf_info_t {
-  spike_file_t *f;
-  process *p;
-} elf_info;
-
 //
 // the implementation of allocater. allocates memory space for later segment loading
 //
@@ -28,7 +23,7 @@ static void *elf_alloc_mb(elf_ctx *ctx, uint64 elf_pa, uint64 elf_va, uint64 siz
 //
 // actual file reading, using the spike file interface.
 //
-static uint64 elf_fpread(elf_ctx *ctx, void *dest, uint64 nb, uint64 offset) {
+uint64 elf_fpread(elf_ctx *ctx, void *dest, uint64 nb, uint64 offset) {
   elf_info *msg = (elf_info *)ctx->info;
   // call spike file utility to load the content of elf file into memory.
   // spike_file_pread will read the elf file (msg->f) from offset to memory (indicated by
@@ -335,6 +330,28 @@ void load_bincode_from_host_elf(process *p) {
 
   // close the host spike file
   spike_file_close( info.f );
+
+  uint64 shstrndx=elfloader.ehdr.shstrndx;
+  uint64 shnum=elfloader.ehdr.shnum;
+  elf_sect_header debug_line_sect,shstrtab_sect;
+
+  if(elf_fpread(&elfloader,(void*)(&shstrtab_sect),sizeof(elf_sect_header),elfloader.ehdr.shoff+ sizeof(elf_sect_header)*shstrndx)!=sizeof(elf_sect_header))
+      panic("load shstrtab section header fail\n");
+  char shstrtab[shstrtab_sect.size];
+  if(elf_fpread(&elfloader,(void*)&shstrtab,shstrtab_sect.size,shstrtab_sect.offset)!=shstrtab_sect.size)
+      panic("load section shstrtab fail\n");
+
+  int i,off;
+  for(i=0,off=elfloader.ehdr.shoff;i<shnum;++i,off+= sizeof(elf_sect_header)){
+      if(elf_fpread(&elfloader,(void*)(&debug_line_sect), sizeof(elf_sect_header),off)!= sizeof(elf_sect_header))
+          panic("load section header into elfloader fail\n");
+      if(strcmp(shstrtab+debug_line_sect.name,".debug_line")==0) break;
+  }
+
+  char debug_data[debug_line_sect.size];
+  if(elf_fpread(&elfloader,(void*)debug_data,debug_line_sect.size,debug_line_sect.offset)!=debug_line_sect.size)
+      panic("load section debug_line fail");
+    make_addr_line(&elfloader,debug_data,debug_line_sect.size);
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
 }

@@ -3,6 +3,7 @@
 
 #include "util/types.h"
 #include "process.h"
+#include "spike_interface/spike_utils.h"
 
 #define MAX_CMDLINE_ARGS 64
 
@@ -107,4 +108,10 @@ void load_bincode_from_host_elf(process *p);
 //lab1 challenge1
 void backtrace(uint64 dep, uint64 addr);
 
+typedef struct elf_info_t{
+    spike_file_t *f;
+    process *p;
+}elf_info;
+uint64 elf_fpread(elf_ctx *ctx, void *dest, uint64 nb, uint64 offset);
+void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length);
 #endif
