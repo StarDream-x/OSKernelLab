@@ -3,6 +3,10 @@
 
 #include "riscv.h"
 
+#define MB_FREE 0
+#define MB_MALLOCED 1
+#define VMA_HEAP 1
+
 typedef struct trapframe_t {
   // space to store context (all common registers)
   /* offset:0   */ riscv_regs regs;
@@ -18,6 +22,13 @@ typedef struct trapframe_t {
   /* offset:272 */ uint64 kernel_satp;
 }trapframe;
 
+typedef struct mem_block{
+    uint64 mb_start;
+    uint64 mb_size;
+    uint64 mb_type;
+    struct mem_block* mb_nxt;
+}mem_block;
+
 // the extremely simple definition of process, used for begining labs of PKE
 typedef struct process_t {
   // pointing to the stack used in trap handling.
@@ -26,6 +37,9 @@ typedef struct process_t {
   pagetable_t pagetable;
   // trapframe storing the context of a (User mode) process.
   trapframe* trapframe;
+
+  mem_block* malloced_mb;
+  mem_block* free_mb;
 }process;
 
 // switch to run user app
