@@ -63,14 +63,14 @@ SPIKE_INF_LIB   := $(OBJ_DIR)/spike_interface.a
 
 
 #---------------------	user   -----------------------
-USER_LDS  := user/user.lds
 USER_CPPS 		:= user/*.c 
 
 USER_CPPS  		:= $(wildcard $(USER_CPPS))
 USER_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_CPPS)))
 
-USER_TARGET 	:= $(OBJ_DIR)/app_helloworld
 
+
+USER_TARGET 	:= $(OBJ_DIR)/app_two_long_loops
 #------------------------targets------------------------
 $(OBJ_DIR):
 	@-mkdir -p $(OBJ_DIR)	
@@ -102,9 +102,9 @@ $(KERNEL_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(SPIKE_INF_LIB) $(KERNEL_OBJS) $(KERNE
 	@$(COMPILE) $(KERNEL_OBJS) $(UTIL_LIB) $(SPIKE_INF_LIB) -o $@ -T $(KERNEL_LDS)
 	@echo "PKE core has been built into" \"$@\"
 
-$(USER_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_OBJS) $(USER_LDS)
+$(USER_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_OBJS)
 	@echo "linking" $@	...	
-	@$(COMPILE) $(USER_OBJS) $(UTIL_LIB) -o $@ -T $(USER_LDS)
+	@$(COMPILE) --entry=main $(USER_OBJS) $(UTIL_LIB) -o $@
 	@echo "User app has been built into" \"$@\"
 
 -include $(wildcard $(OBJ_DIR)/*/*.d)
